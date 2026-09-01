@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 """Fetch a Notion database and export all dated entries as an .ics calendar file."""
 
@@ -269,4 +268,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-```
