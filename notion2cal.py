@@ -1,9 +1,10 @@
+```python
 #!/usr/bin/env python3
 """Fetch a Notion database and export all dated entries as an .ics calendar file."""
 
 import os
 import sys
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 import requests
 from icalendar import Calendar, Event
@@ -105,6 +106,12 @@ def find_description(properties: dict) -> str:
 
 def parse_datetime(value: str) -> datetime | date:
     """Parse a Notion date string into a datetime or date object."""
+    # Notion date with no time, for example:
+    # 2026-09-05
+    if "T" not in value:
+        return date.fromisoformat(value)
+
+    # Notion date with a time
     for fmt in (
         "%Y-%m-%dT%H:%M:%S.%f%z",
         "%Y-%m-%dT%H:%M:%S%z",
@@ -114,8 +121,7 @@ def parse_datetime(value: str) -> datetime | date:
         except ValueError:
             continue
 
-    # Date-only string: return a date object for all-day events
-    return date.fromisoformat(value)
+    raise ValueError(f"Unable to parse Notion date: {value}")
 
 
 def build_calendar(pages: list[dict]) -> Calendar:
@@ -153,23 +159,50 @@ def build_calendar(pages: list[dict]) -> Calendar:
         start = parse_datetime(start_raw)
         end = parse_datetime(end_raw) if end_raw else None
 
+        # A Notion date without a time should become an all-day event.
+        is_all_day = isinstance(start, date) and not isinstance(start, datetime)
+
         event = Event()
 
         event.add("summary", title)
-        event.add("dtstart", start)
 
-        if end:
-            event.add("dtend", end)
+        if is_all_day:
+            # DATE values are exported by icalendar as:
+            #
+            # DTSTART;VALUE=DATE:20260905
+            #
+            # which calendar applications recognize as all-day events.
+            event.add("dtstart", start)
 
-        elif isinstance(start, date) and not isinstance(start, datetime):
-            # All-day event without an end date:
-            # no DTEND is necessary.
-            pass
+            if end:
+                # iCalendar DTEND is exclusive.
+                #
+                # If Notion says:
+                # Sep 5 -> Sep 7
+                #
+                # the calendar should use:
+                # DTSTART: Sep 5
+                # DTEND:   Sep 8
+                #
+                # so Sep 7 is included.
+                event.add("dtend", end + timedelta(days=1))
+
+            else:
+                # Single-day all-day event.
+                #
+                # DTSTART: Sep 5
+                # DTEND:   Sep 6
+                event.add("dtend", start + timedelta(days=1))
 
         else:
-            # Timed event without an end:
-            # use the start time as the end time.
-            event.add("dtend", start)
+            # Normal timed event
+            event.add("dtstart", start)
+
+            if end:
+                event.add("dtend", end)
+            else:
+                # Timed event without an end time
+                event.add("dtend", start)
 
         if description:
             event.add("description", description)
@@ -236,3 +269,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+```
