@@ -2,7 +2,7 @@ name: Sync Notion to Calendar
 
 on:
   schedule:
-    # Runs every day at 10:35 PM Eastern Time
+    # Runs every day around 10:00 PM Eastern Time. Github actions can delay scheduled time.
     - cron: "0 22 * * *"
       timezone: "America/New_York"
 
