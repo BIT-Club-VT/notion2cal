@@ -3,7 +3,7 @@ name: Sync Notion to Calendar
 on:
   schedule:
     # Runs every day at 11:00 PM Eastern Time
-    - cron: "0 23 * * *"
+    - cron: "0 22 * * *"
       timezone: "America/New_York"
   workflow_dispatch: # Allow manual trigger
 
